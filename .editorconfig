@@ -1,0 +1,16 @@
+root = true
+
+[*]
+charset = utf-8
+
+# C/C++
+[*.{c,cpp,h,hpp}]
+insert_final_newline = true
+indent_style = space
+indent_size = 4
+
+#CMake
+[CMakeLists.txt]
+insert_final_newline = true
+indent_style = space
+indent_size = 4
