@@ -42,7 +42,7 @@ static std::random_device sRandomDevice;
 static std::mt19937 sMT(sRandomDevice());
 static float RandFloat(float a_min, float a_max)
 {
-    std::uniform_real_distribution<> distribution(a_min, a_max);
+    std::uniform_real_distribution<float> distribution(a_min, a_max);
     return distribution(sMT);
 }
 
