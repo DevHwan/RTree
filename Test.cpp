@@ -55,7 +55,7 @@ int main()
     static_assert(std::is_same<MyTree::ElementType, int>::value, "ElementType must match");
     static_assert(std::is_same<MyTree::Element, int[2]>::value, "Element must match");
     static_assert(std::is_same<MyTree::ElementTypeReal, float>::value, "ElementTypeReal must match");
-    static_assert(MyTree::kNumDimension == 2, "Dimension must match");
+    static_assert(MyTree::kNumDimensions == 2, "Dimension must match");
 
     MyTree tree;
 
