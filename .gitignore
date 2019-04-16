@@ -510,3 +510,4 @@ MigrationBackup/
 
 # Binary output directory
 bin/
+build/

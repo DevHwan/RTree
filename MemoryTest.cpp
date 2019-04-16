@@ -55,10 +55,8 @@ struct Vec3
 
     /// Construct from three elements
     constexpr Vec3(float a_x, float a_y, float a_z) noexcept
+        : fVal{ a_x, a_y, a_z }
     {
-        fVal[0] = a_x;
-        fVal[1] = a_y;
-        fVal[2] = a_z;
     }
 
     /// Add two vectors and return result
@@ -73,17 +71,15 @@ struct Vec3
 };
 
 
-constexpr static bool BoxesIntersect(const Vec3& a_boxMinA, const Vec3& a_boxMaxA,
+static bool BoxesIntersect(const Vec3& a_boxMinA, const Vec3& a_boxMaxA,
     const Vec3& a_boxMinB, const Vec3& a_boxMaxB)
 {
-    for (int axis = 0; axis < 3; ++axis)
-    {
-        if (a_boxMinA.fVal[axis] > a_boxMaxB.fVal[axis] ||
-            a_boxMaxA.fVal[axis] < a_boxMinB.fVal[axis])
-        {
-            return false;
-        }
-    }
+    if (a_boxMinA.fVal[0] > a_boxMaxB.fVal[0] || a_boxMaxA.fVal[0] < a_boxMinB.fVal[0])
+        return false;
+    if (a_boxMinA.fVal[1] > a_boxMaxB.fVal[1] || a_boxMaxA.fVal[1] < a_boxMinB.fVal[1])
+        return false;
+    if (a_boxMinA.fVal[2] > a_boxMaxB.fVal[2] || a_boxMaxA.fVal[2] < a_boxMinB.fVal[2])
+        return false;
     return true;
 }
 

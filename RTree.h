@@ -5,6 +5,7 @@
 #include <algorithm>
 #include <functional>
 #include <type_traits>
+#include <cmath>
 
 #define RTreeAssert assert // RTree uses RTreeAssert( condition )
 

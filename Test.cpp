@@ -16,12 +16,9 @@ struct Rect
     Rect() noexcept = default;
 
     constexpr Rect(int a_minX, int a_minY, int a_maxX, int a_maxY) noexcept
+        : fMin{ a_minX, a_minY }
+        , fMax{ a_maxX, a_maxY }
     {
-        fMin[0] = a_minX;
-        fMin[1] = a_minY;
-
-        fMax[0] = a_maxX;
-        fMax[1] = a_maxY;
     }
 
 
