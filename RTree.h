@@ -101,7 +101,7 @@ public:
     void RemoveAll();
 
     /// Count the data elements in this container.  This is slow as no internal counter is maintained.
-    int Count();
+    int Count() const;
 
     /// Load tree contents from file
     bool Load(const char* a_fileName);
@@ -244,7 +244,7 @@ public:
     };
 
     /// Get 'first' for iteration
-    void GetFirst(Iterator& a_it)
+    void GetFirst(Iterator& a_it) const
     {
         a_it.Init();
         auto first = m_root;
@@ -267,7 +267,7 @@ public:
     }
 
     /// Get Next for iteration
-    void GetNext(Iterator& a_it) { ++a_it; }
+    void GetNext(Iterator& a_it) const { ++a_it; }
 
     /// Is iterator NULL, or at end?
     bool IsNull(const Iterator& a_it) const { return a_it.IsNull(); }
@@ -360,7 +360,7 @@ protected:
     bool Search(Node* a_node, Rect* a_rect, int& a_foundCount, std::function<bool(const DataType&)> callback) const;
     void RemoveAllRec(Node* a_node);
     void Reset();
-    void CountRec(Node* a_node, int& a_count);
+    void CountRec(Node* a_node, int& a_count) const;
 
     bool SaveRec(Node* a_node, RTFileStream& a_stream);
     bool LoadRec(Node* a_node, RTFileStream& a_stream);
@@ -554,7 +554,7 @@ int RTREE_QUAL::Search(const Element& a_min, const Element& a_max, std::function
 
 
 RTREE_TEMPLATE
-int RTREE_QUAL::Count()
+int RTREE_QUAL::Count() const
 {
     int count = 0;
     CountRec(m_root, count);
@@ -565,7 +565,7 @@ int RTREE_QUAL::Count()
 
 
 RTREE_TEMPLATE
-void RTREE_QUAL::CountRec(Node* a_node, int& a_count)
+void RTREE_QUAL::CountRec(Node* a_node, int& a_count) const
 {
     if (a_node->IsInternalNode())  // not a leaf node
     {
