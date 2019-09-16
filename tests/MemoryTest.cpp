@@ -1,3 +1,12 @@
+//
+// MemoryTest.cpp
+//
+// This demonstrates a use of RTree
+//
+
+// RTree
+#include <RTree.h>
+
 #include <stdio.h>
 #include <memory.h>
 #ifdef WIN32
@@ -5,15 +14,6 @@
 #endif //WIN32
 
 #include <random>
-
-#include "RTree.h"
-
-
-//
-// MemoryTest.cpp
-//
-// This demonstrates a use of RTree
-//
 
 // Use CRT Debug facility to dump memory leaks on app exit
 #ifdef WIN32

@@ -4,8 +4,10 @@
 // This is a direct port of the C version of the RTree test program.
 //
 
+// RTree
+#include <RTree.h>
+
 #include <iostream>
-#include "RTree.h"
 
 using namespace std;
 

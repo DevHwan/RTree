@@ -7,83 +7,20 @@ if(CMAKE_SOURCE_DIR STREQUAL CMAKE_BINARY_DIR)
 endif()
 
 # RTree project
-project(
-    RTree
-    VERSION 0.0.1
-)
+project(RTree
+    VERSION 0.1.0)
 
-# Test file
-add_executable(Test_RTree
-    Test.cpp
-)
-target_include_directories(Test_RTree
-    PRIVATE
-        ${RTree_SOURCE_DIR}
-)
-target_compile_features(Test_RTree
-    PUBLIC
-        cxx_std_11
-)
-if(MSVC)
-    target_compile_options(Test_RTree
-        PRIVATE
-            /permissive-
-            /sdl
-            /Zc:wchar_t
-    )
-    target_compile_definitions(Test_RTree
-        PRIVATE
-            _CRT_SECURE_NO_WARNINGS
-    )
-endif()
+# Project build options
+option(RTREE_BUILD_TESTS "Build test programs" OFF)
 
+# RTree as header only library
+add_library(RTree INTERFACE)
+target_include_directories(RTree
+    INTERFACE ${CMAKE_CURRENT_LIST_DIR}/include)
+target_compile_features(RTree
+    INTERFACE cxx_std_11)
 
-# Memory Test file
-add_executable(Test_Memory_RTree
-    MemoryTest.cpp
-)
-target_include_directories(Test_Memory_RTree
-    PRIVATE
-        ${RTree_SOURCE_DIR}
-)
-target_compile_features(Test_Memory_RTree
-    PUBLIC
-        cxx_std_11
-)
-if(MSVC)
-    target_compile_options(Test_Memory_RTree
-        PRIVATE
-            /permissive-
-            /sdl
-            /Zc:wchar_t
-    )
-    target_compile_definitions(Test_Memory_RTree
-        PRIVATE
-            _CRT_SECURE_NO_WARNINGS
-    )
-endif()
-
-# Bad Data Test file
-add_executable(Test_BadData_RTree
-    TestBadData.cpp
-)
-target_include_directories(Test_BadData_RTree
-    PRIVATE
-        ${RTree_SOURCE_DIR}
-)
-target_compile_features(Test_BadData_RTree
-    PUBLIC
-        cxx_std_11
-)
-if(MSVC)
-    target_compile_options(Test_BadData_RTree
-        PRIVATE
-            /permissive-
-            /sdl
-            /Zc:wchar_t
-    )
-    target_compile_definitions(Test_BadData_RTree
-        PRIVATE
-            _CRT_SECURE_NO_WARNINGS
-    )
+# Tests
+if (RTREE_BUILD_TESTS)
+    add_subdirectory(tests)
 endif()

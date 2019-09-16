@@ -2,11 +2,13 @@
 // TestBadData.cpp
 //
 
+// RTree
+#include <RTree.h>
+
 #include <iostream>
 #include <fstream>
 #include <string>
 #include <vector>
-#include "RTree.h"
 
 using namespace std;
 
