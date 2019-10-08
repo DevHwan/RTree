@@ -9,17 +9,15 @@
 
 #include <iostream>
 
-using namespace std;
-
 typedef int ValueType;
 
 struct Rect
 {
     Rect() noexcept = default;
 
-    constexpr Rect(int a_minX, int a_minY, int a_maxX, int a_maxY) noexcept
-        : fMin{ a_minX, a_minY }
-        , fMax{ a_maxX, a_maxY }
+    constexpr Rect(int minX, int minY, int maxX, int maxY) noexcept
+        : fMin{ minX, minY }
+        , fMax{ maxX, maxY }
     {
     }
 
@@ -43,7 +41,7 @@ Rect search_rect(6, 4, 10, 6); // search will find above rects that this one ove
 
 bool MySearchCallback(ValueType id)
 {
-    cout << "Hit data rect " << id << "\n";
+    std::cout << "Hit data rect " << id << "\n";
     return true; // keep going
 }
 
@@ -58,7 +56,7 @@ int main()
 
     MyTree tree;
 
-    cout << "nrects = " << nrects << "\n";
+    std::cout << "nrects = " << nrects << "\n";
 
     for (size_t i = 0; i < nrects; i++)
     {
@@ -67,7 +65,7 @@ int main()
 
     const auto nhits = tree.Search(search_rect.fMin, search_rect.fMax, MySearchCallback);
 
-    cout << "Search resulted in " << nhits << " hits\n";
+    std::cout << "Search resulted in " << nhits << " hits\n";
 
     // Iterator test
     int itIndex = 0;
@@ -81,7 +79,7 @@ int main()
         int boundsMin[2] = { 0,0 };
         int boundsMax[2] = { 0,0 };
         it.GetBounds(boundsMin, boundsMax);
-        cout << "it[" << itIndex++ << "] " << value << " = (" << boundsMin[0] << "," << boundsMin[1] << "," << boundsMax[0] << "," << boundsMax[1] << ")\n";
+        std::cout << "it[" << itIndex++ << "] " << value << " = (" << boundsMin[0] << "," << boundsMin[1] << "," << boundsMax[0] << "," << boundsMax[1] << ")\n";
     }
 
     // Iterator test, alternate syntax
@@ -91,7 +89,7 @@ int main()
     {
         int value = *it;
         ++it;
-        cout << "it[" << itIndex++ << "] " << value << "\n";
+        std::cout << "it[" << itIndex++ << "] " << value << "\n";
     }
 
     // test copy constructor
@@ -108,7 +106,7 @@ int main()
         int boundsMin[2] = { 0,0 };
         int boundsMax[2] = { 0,0 };
         it.GetBounds(boundsMin, boundsMax);
-        cout << "it[" << itIndex++ << "] " << value << " = (" << boundsMin[0] << "," << boundsMin[1] << "," << boundsMax[0] << "," << boundsMax[1] << ")\n";
+        std::cout << "it[" << itIndex++ << "] " << value << " = (" << boundsMin[0] << "," << boundsMin[1] << "," << boundsMax[0] << "," << boundsMax[1] << ")\n";
     }
 
     // Iterator test, alternate syntax
@@ -118,7 +116,7 @@ int main()
     {
         int value = *it;
         ++it;
-        cout << "it[" << itIndex++ << "] " << value << "\n";
+        std::cout << "it[" << itIndex++ << "] " << value << "\n";
     }
 
     return 0;

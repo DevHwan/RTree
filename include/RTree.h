@@ -22,60 +22,56 @@
 class RTFileStream {
 public:
     RTFileStream() = default;
+    ~RTFileStream() = default;
 
-    ~RTFileStream() {
-        Close();
-    }
-
-    bool OpenRead(const char* a_fileName) {
-        m_file = fopen(a_fileName, "rb");
-        if (!m_file) {
+    bool OpenRead(const char* fileName) {
+        RTreeAssert(fileName);
+        this->fFile.reset(fopen(fileName, "rb"));
+        if (!this->fFile) {
             return false;
         }
         return true;
     }
 
-    bool OpenWrite(const char* a_fileName) {
-        m_file = fopen(a_fileName, "wb");
-        if (!m_file) {
+    bool OpenWrite(const char* fileName) {
+        RTreeAssert(fileName);
+        this->fFile.reset(fopen(fileName, "wb"));
+        if (!this->fFile) {
             return false;
         }
         return true;
     }
 
     void Close() {
-        if (m_file) {
-            fclose(m_file);
-            m_file = nullptr;
-        }
+        this->fFile.reset();
     }
 
     template< typename TYPE >
-    size_t Write(const TYPE& a_value) {
-        RTreeAssert(m_file);
-        return fwrite((void*)&a_value, sizeof(a_value), 1, m_file);
+    size_t Write(const TYPE& value) {
+        RTreeAssert(this->fFile);
+        return fwrite((void*)&value, sizeof(value), 1, this->fFile.get());
     }
 
     template< typename TYPE >
-    size_t WriteArray(const TYPE* a_array, int a_count) {
-        RTreeAssert(m_file);
-        return fwrite((void*)a_array, sizeof(TYPE) * a_count, 1, m_file);
+    size_t WriteArray(const TYPE* array, int count) {
+        RTreeAssert(this->fFile);
+        return fwrite((void*)array, sizeof(TYPE) * count, 1, this->fFile.get());
     }
 
     template< typename TYPE >
-    size_t Read(TYPE& a_value) {
-        RTreeAssert(m_file);
-        return fread((void*)&a_value, sizeof(a_value), 1, m_file);
+    size_t Read(TYPE& value) {
+        RTreeAssert(this->fFile);
+        return fread((void*)&value, sizeof(value), 1, this->fFile.get());
     }
 
     template< typename TYPE >
-    size_t ReadArray(TYPE* a_array, int a_count) {
-        RTreeAssert(m_file);
-        return fread((void*)a_array, sizeof(TYPE) * a_count, 1, m_file);
+    size_t ReadArray(TYPE* array, int count) {
+        RTreeAssert(this->fFile);
+        return fread((void*)array, sizeof(TYPE) * count, 1, this->fFile.get());
     }
 
 private:
-    FILE* m_file = nullptr;
+    std::unique_ptr<FILE, decltype(&fclose)> fFile;
 };
 
 /// \class RTree
@@ -139,13 +135,13 @@ public:
           CastElementTypeReal(0.082146), CastElementTypeReal(0.046622), CastElementTypeReal(0.025807), // Dimension  18,19,20 
         };
 
-        this->m_root = this->AllocNode();
-        this->m_root->m_level = 0;
-        this->m_unitSphereVolume = kUnitSphereVolumes[kNumDimensions];
+        this->fRoot = this->AllocNode();
+        this->fRoot->fLevel = 0;
+        this->fUnitSphereVolume = kUnitSphereVolumes[kNumDimensions];
     }
 
     RTree(const RTree& other) : RTree() {
-        this->CopyRec(this->m_root, other.m_root);
+        this->CopyRec(this->fRoot, other.fRoot);
     }
 
     ~RTree() {
@@ -164,15 +160,15 @@ public:
 #endif //_DEBUG
 
         Branch branch;
-        branch.m_data = dataId;
-        branch.m_child = nullptr;
+        branch.fData = dataId;
+        branch.fChild = nullptr;
 
         for (int axis = 0; axis < kNumDimensions; ++axis) {
-            branch.m_rect.m_min[axis] = minPos[axis];
-            branch.m_rect.m_max[axis] = maxPos[axis];
+            branch.fRect.fMin[axis] = minPos[axis];
+            branch.fRect.fMax[axis] = maxPos[axis];
         }
 
-        this->InsertRect(branch, &this->m_root, 0);
+        this->InsertRect(branch, &this->fRoot, 0);
     }
 
     /// Remove entry
@@ -189,11 +185,11 @@ public:
         Rect rect;
 
         for (int axis = 0; axis < kNumDimensions; ++axis) {
-            rect.m_min[axis] = minPos[axis];
-            rect.m_max[axis] = maxPos[axis];
+            rect.fMin[axis] = minPos[axis];
+            rect.fMax[axis] = maxPos[axis];
         }
 
-        this->RemoveRect(&rect, dataId, &this->m_root);
+        this->RemoveRect(&rect, dataId, &this->fRoot);
     }
 
     /// Find all within search rectangle
@@ -211,14 +207,14 @@ public:
         Rect rect;
 
         for (int axis = 0; axis < kNumDimensions; ++axis) {
-            rect.m_min[axis] = minPos[axis];
-            rect.m_max[axis] = maxPos[axis];
+            rect.fMin[axis] = minPos[axis];
+            rect.fMax[axis] = maxPos[axis];
         }
 
         // NOTE: May want to return search result another way, perhaps returning the number of found elements here.
 
         int foundCount = 0;
-        this->Search(this->m_root, &rect, foundCount, callback);
+        this->Search(this->fRoot, &rect, foundCount, callback);
 
         return foundCount;
     }
@@ -229,15 +225,15 @@ public:
         // Delete all existing nodes
         this->Reset();
 
-        m_root = this->AllocNode();
-        m_root->m_level = 0;
+        fRoot = this->AllocNode();
+        fRoot->fLevel = 0;
     }
 
     /// Count the data elements in this container.  This is slow as no internal counter is maintained.
     int Count() const {
 
         int count = 0;
-        this->CountRec(m_root, count);
+        this->CountRec(fRoot, count);
 
         return count;
     }
@@ -295,7 +291,7 @@ public:
             && (dataMaxNodes == _dataMaxNodes)
             && (dataMinNodes == _dataMinNodes)) {
             // Recursively load tree
-            result = this->LoadRec(this->m_root, stream);
+            result = this->LoadRec(this->fRoot, stream);
         }
 
         return result;
@@ -337,7 +333,7 @@ public:
         stream.Write(dataMinNodes);
 
         // Recursively save tree
-        bool result = this->SaveRec(this->m_root, this->a_stream);
+        bool result = this->SaveRec(this->fRoot, this->a_stream);
 
         return result;
     }
@@ -350,8 +346,8 @@ public:
     private:
 
         struct StackElement {
-            Node* m_node = nullptr;
-            int m_branchIndex = 0;
+            Node* fNode = nullptr;
+            int fbranchIndex = 0;
         };
 
     public:
@@ -364,26 +360,26 @@ public:
 
         /// Is iterator invalid
         bool IsNull() const noexcept {
-            return (this->m_tos <= 0);
+            return (this->ftos <= 0);
         }
 
         /// Is iterator pointing to valid data
         bool IsNotNull() const noexcept {
-            return (this->m_tos > 0);
+            return (this->ftos > 0);
         }
 
         /// Access the current data element. Caller must be sure iterator is not NULL first.
         DataType& operator*() {
             RTreeAssert(this->IsNotNull());
-            const auto& curTos = this->m_stack[m_tos - 1];
-            return curTos.m_node->m_branch[curTos.m_branchIndex].m_data;
+            const auto& curTos = this->fstack[ftos - 1];
+            return curTos.fNode->fBranch[curTos.fbranchIndex].fData;
         }
 
         /// Access the current data element. Caller must be sure iterator is not NULL first.
         const DataType& operator*() const {
             RTreeAssert(this->IsNotNull());
-            const auto& curTos = this->m_stack[m_tos - 1];
-            return curTos.m_node->m_branch[curTos.m_branchIndex].m_data;
+            const auto& curTos = this->fstack[ftos - 1];
+            return curTos.fNode->fBranch[curTos.fbranchIndex].fData;
         }
 
         /// Find the next data element
@@ -394,13 +390,13 @@ public:
         /// Get the bounds for this node
         void GetBounds(Element& minPos, Element& maxPos) {
             RTreeAssert(this->IsNotNull());
-            const auto& curTos = this->m_stack[m_tos - 1];
-            const auto& curBranch = curTos.m_node->m_branch[curTos.m_branchIndex];
+            const auto& curTos = this->fstack[ftos - 1];
+            const auto& curBranch = curTos.fNode->fBranch[curTos.fbranchIndex];
 
             for (int index = 0; index < kNumDimensions; ++index)
             {
-                minPos[index] = curBranch.m_rect.m_min[index];
-                maxPos[index] = curBranch.m_rect.m_max[index];
+                minPos[index] = curBranch.fRect.fMin[index];
+                maxPos[index] = curBranch.fRect.fMax[index];
             }
         }
 
@@ -408,33 +404,33 @@ public:
 
         /// Reset iterator
         void Init() {
-            this->m_tos = 0;
+            this->ftos = 0;
         }
 
         /// Find the next data element in the tree (For internal use only)
         bool FindNextData() {
             for (;;) {
-                if (this->m_tos <= 0) {
+                if (this->ftos <= 0) {
                     return false;
                 }
                 const auto curTos = this->Pop(); // Copy stack top cause it may change as we use it
 
-                if (curTos.m_node->IsLeaf()) {
+                if (curTos.fNode->IsLeaf()) {
                     // Keep walking through data while we can
-                    if (curTos.m_branchIndex + 1 < curTos.m_node->m_count) {
+                    if (curTos.fbranchIndex + 1 < curTos.fNode->fCount) {
                         // There is more data, just point to the next one
-                        this->Push(curTos.m_node, curTos.m_branchIndex + 1);
+                        this->Push(curTos.fNode, curTos.fbranchIndex + 1);
                         return true;
                     }
                     // No more data, so it will fall back to previous level
                 } else {
-                    if (curTos.m_branchIndex + 1 < curTos.m_node->m_count) {
+                    if (curTos.fbranchIndex + 1 < curTos.fNode->fCount) {
                         // Push sibling on for future tree walk
                         // This is the 'fall back' node when we finish with the current level
-                        this->Push(curTos.m_node, curTos.m_branchIndex + 1);
+                        this->Push(curTos.fNode, curTos.fbranchIndex + 1);
                     }
                     // Since cur node is not a leaf, push first of next level to get deeper into the tree
-                    const auto nextLevelnode = curTos.m_node->m_branch[curTos.m_branchIndex].m_child;
+                    const auto nextLevelnode = curTos.fNode->fBranch[curTos.fbranchIndex].fChild;
                     this->Push(nextLevelnode, 0);
 
                     // If we pushed on a new leaf, exit as the data is ready at TOS
@@ -447,21 +443,21 @@ public:
 
         /// Push node and branch onto iteration stack (For internal use only)
         void Push(Node* node, int branchIndex) {
-            this->m_stack[m_tos].m_node = node;
-            this->m_stack[m_tos].m_branchIndex = branchIndex;
-            ++this->m_tos;
-            RTreeAssert(this->m_tos <= kMaxStackSize);
+            this->fstack[ftos].fNode = node;
+            this->fstack[ftos].fbranchIndex = branchIndex;
+            ++this->ftos;
+            RTreeAssert(this->ftos <= kMaxStackSize);
         }
 
         /// Pop element off iteration stack (For internal use only)
         StackElement& Pop() {
-            RTreeAssert(this->m_tos > 0);
-            --this->m_tos;
-            return this->m_stack[m_tos];
+            RTreeAssert(this->ftos > 0);
+            --this->ftos;
+            return this->fstack[ftos];
         }
 
-        StackElement m_stack[kMaxStackSize];          ///< Stack as we are doing iteration instead of recursion
-        int m_tos = 0;                                ///< Top Of Stack index
+        StackElement fstack[kMaxStackSize];          ///< Stack as we are doing iteration instead of recursion
+        int ftos = 0;                                ///< Top Of Stack index
 
         friend class RTree; // Allow hiding of non-public functions while allowing manipulation by logical owner
     };
@@ -469,17 +465,17 @@ public:
     /// Get 'first' for iteration
     void GetFirst(Iterator& iter) const {
         iter.Init();
-        auto first = this->m_root;
+        auto first = this->fRoot;
         while (first) {
-            if (first->IsInternalNode() && first->m_count > 1) {
+            if (first->IsInternalNode() && first->fCount > 1) {
                 iter.Push(first, 1); // Descend sibling branch later
             } else if (first->IsLeaf()) {
-                if (first->m_count) {
+                if (first->fCount) {
                     iter.Push(first, 0);
                 }
                 break;
             }
-            first = first->m_branch[0].m_child;
+            first = first->fBranch[0].fChild;
         }
     }
 
@@ -507,50 +503,56 @@ protected:
 
     /// Minimal bounding rectangle (n-dimensional)
     struct Rect {
-        ElementType m_min[kNumDimensions] = { 0, };                      ///< Min dimensions of bounding box 
-        ElementType m_max[kNumDimensions] = { 0, };                      ///< Max dimensions of bounding box 
+        ElementType fMin[kNumDimensions] = { 0, };                      ///< Min dimensions of bounding box 
+        ElementType fMax[kNumDimensions] = { 0, };                      ///< Max dimensions of bounding box 
     };
 
     /// May be data or may be another subtree
     /// The parents level determines this.
     /// If the parents level is 0, then this is data
     struct Branch {
-        Rect m_rect;                                  ///< Bounds
-        Node* m_child = nullptr;                      ///< Child node
-        DataType m_data;                             ///< Data Id
+        Rect fRect;                         ///< Bounds
+        Node* fChild = nullptr;             ///< Child node
+        DataType fData;                     ///< Data Id
     };
 
     /// Node for each branch level
     struct Node {
-        bool IsInternalNode() const noexcept { return (m_level > 0); } // Not a leaf, but a internal node
-        bool IsLeaf() const noexcept { return (m_level == 0); }        // A leaf, contains data
+        int fCount = 0;                     ///< Count
+        int fLevel = 0;                     ///< Leaf is zero, others positive
+        Branch fBranch[_MaxNodeCount];      ///< Branch
 
-        int m_count = 0;                              ///< Count
-        int m_level = 0;                              ///< Leaf is zero, others positive
-        Branch m_branch[_MaxNodeCount];               ///< Branch
+        // Not a leaf, but a internal node
+        bool IsInternalNode() const noexcept {
+            return (fLevel > 0);
+        }
+        // A leaf, contains data
+        bool IsLeaf() const noexcept {
+            return (fLevel == 0);
+        }
     };
 
     /// A link list of nodes for reinsertion after a delete operation
     struct ListNode {
-        ListNode* m_next = nullptr;                   ///< Next in list
-        Node* m_node = nullptr;                       ///< Node
+        ListNode* fNext = nullptr;          ///< Next in list
+        Node* fNode = nullptr;              ///< Node
     };
 
     /// Variables for finding a split partition
     struct PartitionVars {
         constexpr static const int kNotTaken = -1; // indicates that position
 
-        int m_partition[_MaxNodeCount + 1] = { 0, };
-        int m_total = 0;
-        int m_minFill = 0;
-        int m_count[2] = { 0, };
-        Rect m_cover[2];
-        ElementTypeReal m_area[2] = { kElementTypeRealZero, };
+        int fPartition[_MaxNodeCount + 1] = { 0, };
+        int fTotal = 0;
+        int fMinFill = 0;
+        int fCount[2] = { 0, };
+        Rect fCover[2];
+        ElementTypeReal fArea[2] = { kElementTypeRealZero, };
 
-        Branch m_branchBuf[_MaxNodeCount + 1];
-        int m_branchCount = 0;
-        Rect m_coverSplit;
-        ElementTypeReal m_coverSplitArea = kElementTypeRealZero;
+        Branch fBranchBuf[_MaxNodeCount + 1];
+        int fBranchCount = 0;
+        Rect fCoverSplit;
+        ElementTypeReal fCoverSplitArea = kElementTypeRealZero;
     };
 
     Node* AllocNode() {
@@ -575,14 +577,14 @@ protected:
     }
 
     void InitNode(Node* node) {
-        node->m_count = 0;
-        node->m_level = -1;
+        node->fCount = 0;
+        node->fLevel = -1;
     }
 
     void InitRect(Rect* rect) {
         for (int index = 0; index < kNumDimensions; ++index) {
-            rect->m_min[index] = CastElementType(0);
-            rect->m_max[index] = CastElementType(0);
+            rect->fMin[index] = CastElementType(0);
+            rect->fMax[index] = CastElementType(0);
         }
     }
 
@@ -595,38 +597,38 @@ protected:
     // level to insert; e.g. a data rectangle goes in at level = 0.
     bool InsertRectRec(const Branch& branch, Node* node, Node** newnode, int level) {
         RTreeAssert(node && newnode);
-        RTreeAssert(level >= 0 && level <= node->m_level);
+        RTreeAssert(level >= 0 && level <= node->fLevel);
 
         // recurse until we reach the correct level for the new record. data records
         // will always be called with level == 0 (leaf)
-        if (node->m_level > level) {
+        if (node->fLevel > level) {
             // Still above level for insertion, go down tree recursively
             Node* otherNode;
 
             // find the optimal branch for this record
-            int index = this->PickBranch(&branch.m_rect, node);
+            int index = this->PickBranch(&branch.fRect, node);
 
             // recursively insert this record into the picked branch
-            bool childWasSplit = this->InsertRectRec(branch, node->m_branch[index].m_child, &otherNode, level);
+            bool childWasSplit = this->InsertRectRec(branch, node->fBranch[index].fChild, &otherNode, level);
 
             if (!childWasSplit) {
                 // Child was not split. Merge the bounding box of the new record with the
                 // existing bounding box
-                node->m_branch[index].m_rect = this->CombineRect(&branch.m_rect, &(node->m_branch[index].m_rect));
+                node->fBranch[index].fRect = this->CombineRect(&branch.fRect, &(node->fBranch[index].fRect));
                 return false;
             } else {
                 // Child was split. The old branches are now re-partitioned to two nodes
                 // so we have to re-calculate the bounding boxes of each node
-                node->m_branch[index].m_rect = this->NodeCover(node->m_branch[index].m_child);
+                node->fBranch[index].fRect = this->NodeCover(node->fBranch[index].fChild);
                 Branch branch;
-                branch.m_child = otherNode;
-                branch.m_rect = this->NodeCover(otherNode);
+                branch.fChild = otherNode;
+                branch.fRect = this->NodeCover(otherNode);
 
                 // The old node is already a child of node. Now add the newly-created
                 // node to node as well. node might be split because of that.
                 return this->AddBranch(&branch, node, newnode);
             }
-        } else if (node->m_level == level) {
+        } else if (node->fLevel == level) {
             // We have reached level for insertion. Add rect, split if necessary
             return this->AddBranch(&branch, node, newnode);
         } else {
@@ -644,10 +646,10 @@ protected:
     // InsertRect2 does the recursion.
     bool InsertRect(const Branch& branch, Node** root, int level) {
         RTreeAssert(root);
-        RTreeAssert(level >= 0 && level <= (*root)->m_level);
+        RTreeAssert(level >= 0 && level <= (*root)->fLevel);
 #ifdef _DEBUG
         for (int index = 0; index < kNumDimensions; ++index) {
-            RTreeAssert(branch.m_rect.m_min[index] <= branch.m_rect.m_max[index]);
+            RTreeAssert(branch.fRect.fMin[index] <= branch.fRect.fMax[index]);
         }
 #endif //_DEBUG  
 
@@ -656,18 +658,18 @@ protected:
         if (this->InsertRectRec(branch, *root, &newNode, level)) { // Root split
             // Grow tree taller and new root
             Node* newRoot = this->AllocNode();
-            newRoot->m_level = (*root)->m_level + 1;
+            newRoot->fLevel = (*root)->fLevel + 1;
 
             Branch branch;
 
             // add old root node as a child of the new root
-            branch.m_rect = this->NodeCover(*root);
-            branch.m_child = *root;
+            branch.fRect = this->NodeCover(*root);
+            branch.fChild = *root;
             this->AddBranch(&branch, newRoot, nullptr);
 
             // add the split node as a child of the new root
-            branch.m_rect = this->NodeCover(newNode);
-            branch.m_child = newNode;
+            branch.fRect = this->NodeCover(newNode);
+            branch.fChild = newNode;
             this->AddBranch(&branch, newRoot, nullptr);
 
             // set the new root as the root node
@@ -683,9 +685,9 @@ protected:
     Rect NodeCover(Node* node) {
         RTreeAssert(node);
 
-        Rect rect = node->m_branch[0].m_rect;
-        for (int index = 1; index < node->m_count; ++index) {
-            rect = this->CombineRect(&rect, &(node->m_branch[index].m_rect));
+        Rect rect = node->fBranch[0].fRect;
+        for (int index = 1; index < node->fCount; ++index) {
+            rect = this->CombineRect(&rect, &(node->fBranch[index].fRect));
         }
 
         return rect;
@@ -700,10 +702,10 @@ protected:
         RTreeAssert(branch);
         RTreeAssert(node);
 
-        if (node->m_count < _MaxNodeCount)  // Split won't be necessary
+        if (node->fCount < _MaxNodeCount)  // Split won't be necessary
         {
-            node->m_branch[node->m_count] = *branch;
-            ++node->m_count;
+            node->fBranch[node->fCount] = *branch;
+            ++node->fCount;
 
             return false;
         } else {
@@ -718,12 +720,12 @@ protected:
     // Caller must return (or stop using iteration index) after this as count has changed
     void DisconnectBranch(Node* node, int index) {
         RTreeAssert(node && (index >= 0) && (index < _MaxNodeCount));
-        RTreeAssert(node->m_count > 0);
+        RTreeAssert(node->fCount > 0);
 
         // Remove element by swapping with the last element to prevent gaps in array
-        node->m_branch[index] = node->m_branch[node->m_count - 1];
+        node->fBranch[index] = node->fBranch[node->fCount - 1];
 
-        --node->m_count;
+        --node->fCount;
     }
 
     // Pick a branch.  Pick the one that will need the smallest increase
@@ -742,8 +744,8 @@ protected:
         int best = 0;
         Rect tempRect;
 
-        for (int index = 0; index < node->m_count; ++index) {
-            Rect* curRect = &node->m_branch[index].m_rect;
+        for (int index = 0; index < node->fCount; ++index) {
+            Rect* curRect = &node->fBranch[index].fRect;
             area = this->CalcRectVolume(curRect);
             tempRect = this->CombineRect(rect, curRect);
             increase = this->CalcRectVolume(&tempRect) - area;
@@ -768,8 +770,8 @@ protected:
         Rect newRect;
 
         for (int index = 0; index < kNumDimensions; ++index) {
-            newRect.m_min[index] = (std::min)(rectA->m_min[index], rectB->m_min[index]);
-            newRect.m_max[index] = (std::max)(rectA->m_max[index], rectB->m_max[index]);
+            newRect.fMin[index] = (std::min)(rectA->fMin[index], rectB->fMin[index]);
+            newRect.fMax[index] = (std::max)(rectA->fMax[index], rectB->fMax[index]);
         }
 
         return newRect;
@@ -795,13 +797,13 @@ protected:
 
         // Create a new node to hold (about) half of the branches
         *newnode = this->AllocNode();
-        (*newnode)->m_level = node->m_level;
+        (*newnode)->fLevel = node->fLevel;
 
         // Put branches from buffer into 2 nodes according to the chosen partition
-        node->m_count = 0;
+        node->fCount = 0;
         this->LoadNodes(node, *newnode, parVars);
 
-        RTreeAssert((node->m_count + (*newnode)->m_count) == parVars->m_total);
+        RTreeAssert((node->fCount + (*newnode)->fCount) == parVars->fTotal);
     }
 
     // The exact volume of the bounding sphere for the given Rect
@@ -811,7 +813,7 @@ protected:
         ElementTypeReal sumOfSquares = kElementTypeRealZero;
 
         for (int index = 0; index < kNumDimensions; ++index) {
-            const auto halfExtent = (CastElementTypeReal(rect->m_max[index]) - CastElementTypeReal(rect->m_min[index])) * CastElementTypeReal(0.5);
+            const auto halfExtent = (CastElementTypeReal(rect->fMax[index]) - CastElementTypeReal(rect->fMin[index])) * CastElementTypeReal(0.5);
             sumOfSquares += halfExtent * halfExtent;
         }
 
@@ -819,11 +821,11 @@ protected:
 
         // Pow maybe slow, so test for common dims like 2,3 and just use x*x, x*x*x.
         if (kNumDimensions == 3) {
-            return (radius * radius * radius * this->m_unitSphereVolume);
+            return (radius * radius * radius * this->fUnitSphereVolume);
         } else if (kNumDimensions == 2) {
-            return (radius * radius * this->m_unitSphereVolume);
+            return (radius * radius * this->fUnitSphereVolume);
         } else {
-            return CastElementTypeReal(std::pow(radius, kNumDimensions) * this->m_unitSphereVolume);
+            return CastElementTypeReal(std::pow(radius, kNumDimensions) * this->fUnitSphereVolume);
         }
     }
 
@@ -834,7 +836,7 @@ protected:
         auto volume = kElementTypeRealOne;
 
         for (int index = 0; index < kNumDimensions; ++index) {
-            volume *= rect->m_max[index] - rect->m_min[index];
+            volume *= rect->fMax[index] - rect->fMin[index];
         }
 
         RTreeAssert(volume >= kElementTypeRealZero);
@@ -856,21 +858,21 @@ protected:
         RTreeAssert(node);
         RTreeAssert(branch);
 
-        RTreeAssert(node->m_count == _MaxNodeCount);
+        RTreeAssert(node->fCount == _MaxNodeCount);
 
         // Load the branch buffer
         for (int index = 0; index < _MaxNodeCount; ++index) {
-            parVars->m_branchBuf[index] = node->m_branch[index];
+            parVars->fBranchBuf[index] = node->fBranch[index];
         }
-        parVars->m_branchBuf[_MaxNodeCount] = *branch;
-        parVars->m_branchCount = _MaxNodeCount + 1;
+        parVars->fBranchBuf[_MaxNodeCount] = *branch;
+        parVars->fBranchCount = _MaxNodeCount + 1;
 
         // Calculate rect containing all in the set
-        parVars->m_coverSplit = parVars->m_branchBuf[0].m_rect;
+        parVars->fCoverSplit = parVars->fBranchBuf[0].fRect;
         for (int index = 1; index < _MaxNodeCount + 1; ++index) {
-            parVars->m_coverSplit = this->CombineRect(&parVars->m_coverSplit, &parVars->m_branchBuf[index].m_rect);
+            parVars->fCoverSplit = this->CombineRect(&parVars->fCoverSplit, &parVars->fBranchBuf[index].fRect);
         }
-        parVars->m_coverSplitArea = this->CalcRectVolume(&parVars->m_coverSplit);
+        parVars->fCoverSplitArea = this->CalcRectVolume(&parVars->fCoverSplit);
     }
 
     // Method #0 for choosing a partition:
@@ -890,20 +892,20 @@ protected:
         ElementTypeReal biggestDiff = CastElementTypeReal(-1);
         int group, chosen = 0, betterGroup = 0;
 
-        this->InitParVars(parVars, parVars->m_branchCount, minFill);
+        this->InitParVars(parVars, parVars->fBranchCount, minFill);
         this->PickSeeds(parVars);
 
-        while (((parVars->m_count[0] + parVars->m_count[1]) < parVars->m_total) &&
-                (parVars->m_count[0] < (parVars->m_total - parVars->m_minFill)) &&
-                (parVars->m_count[1] < (parVars->m_total - parVars->m_minFill))) {
+        while (((parVars->fCount[0] + parVars->fCount[1]) < parVars->fTotal) &&
+                (parVars->fCount[0] < (parVars->fTotal - parVars->fMinFill)) &&
+                (parVars->fCount[1] < (parVars->fTotal - parVars->fMinFill))) {
             biggestDiff = CastElementTypeReal(-1);
-            for (int index = 0; index < parVars->m_total; ++index) {
-                if (PartitionVars::kNotTaken == parVars->m_partition[index]) {
-                    Rect* curRect = &parVars->m_branchBuf[index].m_rect;
-                    Rect rect0 = this->CombineRect(curRect, &parVars->m_cover[0]);
-                    Rect rect1 = this->CombineRect(curRect, &parVars->m_cover[1]);
-                    ElementTypeReal growth0 = this->CalcRectVolume(&rect0) - parVars->m_area[0];
-                    ElementTypeReal growth1 = this->CalcRectVolume(&rect1) - parVars->m_area[1];
+            for (int index = 0; index < parVars->fTotal; ++index) {
+                if (PartitionVars::kNotTaken == parVars->fPartition[index]) {
+                    Rect* curRect = &parVars->fBranchBuf[index].fRect;
+                    Rect rect0 = this->CombineRect(curRect, &parVars->fCover[0]);
+                    Rect rect1 = this->CombineRect(curRect, &parVars->fCover[1]);
+                    ElementTypeReal growth0 = this->CalcRectVolume(&rect0) - parVars->fArea[0];
+                    ElementTypeReal growth1 = this->CalcRectVolume(&rect1) - parVars->fArea[1];
                     ElementTypeReal diff = growth1 - growth0;
                     if (diff >= 0) {
                         group = 0;
@@ -916,7 +918,7 @@ protected:
                         biggestDiff = diff;
                         chosen = index;
                         betterGroup = group;
-                    } else if ((diff == biggestDiff) && (parVars->m_count[group] < parVars->m_count[betterGroup])) {
+                    } else if ((diff == biggestDiff) && (parVars->fCount[group] < parVars->fCount[betterGroup])) {
                         chosen = index;
                         betterGroup = group;
                     }
@@ -926,22 +928,22 @@ protected:
         }
 
         // If one group too full, put remaining rects in the other
-        if ((parVars->m_count[0] + parVars->m_count[1]) < parVars->m_total) {
-            if (parVars->m_count[0] >= parVars->m_total - parVars->m_minFill) {
+        if ((parVars->fCount[0] + parVars->fCount[1]) < parVars->fTotal) {
+            if (parVars->fCount[0] >= parVars->fTotal - parVars->fMinFill) {
                 group = 1;
             } else {
                 group = 0;
             }
-            for (int index = 0; index < parVars->m_total; ++index) {
-                if (PartitionVars::kNotTaken == parVars->m_partition[index]) {
+            for (int index = 0; index < parVars->fTotal; ++index) {
+                if (PartitionVars::kNotTaken == parVars->fPartition[index]) {
                     this->Classify(index, group, parVars);
                 }
             }
         }
 
-        RTreeAssert((parVars->m_count[0] + parVars->m_count[1]) == parVars->m_total);
-        RTreeAssert((parVars->m_count[0] >= parVars->m_minFill) && 
-            (parVars->m_count[1] >= parVars->m_minFill));
+        RTreeAssert((parVars->fCount[0] + parVars->fCount[1]) == parVars->fTotal);
+        RTreeAssert((parVars->fCount[0] >= parVars->fMinFill) && 
+            (parVars->fCount[1] >= parVars->fMinFill));
     }
 
     // Copy branches from the buffer into two nodes according to the partition.
@@ -950,14 +952,14 @@ protected:
         RTreeAssert(nodeB);
         RTreeAssert(parVars);
 
-        for (int index = 0; index < parVars->m_total; ++index) {
-            RTreeAssert(parVars->m_partition[index] == 0 || parVars->m_partition[index] == 1);
+        for (int index = 0; index < parVars->fTotal; ++index) {
+            RTreeAssert(parVars->fPartition[index] == 0 || parVars->fPartition[index] == 1);
 
-            int targetNodeIndex = parVars->m_partition[index];
+            int targetNodeIndex = parVars->fPartition[index];
             std::array<Node*, 2> targetNodes{ nodeA, nodeB };
 
             // It is assured that AddBranch here will not cause a node split. 
-            bool nodeWasSplit = this->AddBranch(&parVars->m_branchBuf[index], targetNodes[targetNodeIndex], nullptr);
+            bool nodeWasSplit = this->AddBranch(&parVars->fBranchBuf[index], targetNodes[targetNodeIndex], nullptr);
             RTreeAssert(!nodeWasSplit);
         }
     }
@@ -966,12 +968,12 @@ protected:
     void InitParVars(PartitionVars* parVars, int maxRects, int minFill) const {
         RTreeAssert(parVars);
 
-        parVars->m_count[0] = parVars->m_count[1] = 0;
-        parVars->m_area[0] = parVars->m_area[1] = kElementTypeRealZero;
-        parVars->m_total = maxRects;
-        parVars->m_minFill = minFill;
+        parVars->fCount[0] = parVars->fCount[1] = 0;
+        parVars->fArea[0] = parVars->fArea[1] = kElementTypeRealZero;
+        parVars->fTotal = maxRects;
+        parVars->fMinFill = minFill;
         for (int index = 0; index < maxRects; ++index) {
-            parVars->m_partition[index] = PartitionVars::kNotTaken;
+            parVars->fPartition[index] = PartitionVars::kNotTaken;
         }
     }
 
@@ -981,14 +983,14 @@ protected:
         ElementTypeReal waste = kElementTypeRealZero;
         std::array<ElementTypeReal, _MaxNodeCount + 1> area{ kElementTypeRealZero, };
 
-        for (int index = 0; index < parVars->m_total; ++index) {
-            area[index] = this->CalcRectVolume(&parVars->m_branchBuf[index].m_rect);
+        for (int index = 0; index < parVars->fTotal; ++index) {
+            area[index] = this->CalcRectVolume(&parVars->fBranchBuf[index].fRect);
         }
 
-        worst = -parVars->m_coverSplitArea - 1;
-        for (int indexA = 0; indexA < parVars->m_total - 1; ++indexA) {
-            for (int indexB = indexA + 1; indexB < parVars->m_total; ++indexB) {
-                auto oneRect = CombineRect(&parVars->m_branchBuf[indexA].m_rect, &parVars->m_branchBuf[indexB].m_rect);
+        worst = -parVars->fCoverSplitArea - 1;
+        for (int indexA = 0; indexA < parVars->fTotal - 1; ++indexA) {
+            for (int indexB = indexA + 1; indexB < parVars->fTotal; ++indexB) {
+                auto oneRect = CombineRect(&parVars->fBranchBuf[indexA].fRect, &parVars->fBranchBuf[indexB].fRect);
                 waste = this->CalcRectVolume(&oneRect) - area[indexA] - area[indexB];
                 if (waste > worst) {
                     worst = waste;
@@ -1005,21 +1007,21 @@ protected:
     // Put a branch in one of the groups.
     void Classify(int index, int group, PartitionVars* parVars) {
         RTreeAssert(parVars);
-        RTreeAssert(PartitionVars::kNotTaken == parVars->m_partition[index]);
+        RTreeAssert(PartitionVars::kNotTaken == parVars->fPartition[index]);
 
-        parVars->m_partition[index] = group;
+        parVars->fPartition[index] = group;
 
         // Calculate combined rect
-        if (parVars->m_count[group] == 0) {
-            parVars->m_cover[group] = parVars->m_branchBuf[index].m_rect;
+        if (parVars->fCount[group] == 0) {
+            parVars->fCover[group] = parVars->fBranchBuf[index].fRect;
         } else {
-            parVars->m_cover[group] = this->CombineRect(&parVars->m_branchBuf[index].m_rect, &parVars->m_cover[group]);
+            parVars->fCover[group] = this->CombineRect(&parVars->fBranchBuf[index].fRect, &parVars->fCover[group]);
         }
 
         // Calculate volume of combined rect
-        parVars->m_area[group] = this->CalcRectVolume(&parVars->m_cover[group]);
+        parVars->fArea[group] = this->CalcRectVolume(&parVars->fCover[group]);
 
-        ++parVars->m_count[group];
+        ++parVars->fCount[group];
     }
 
     // Delete a data rectangle from an index structure.
@@ -1036,26 +1038,26 @@ protected:
             // Found and deleted a data item
             // Reinsert any branches from eliminated nodes
             while (reInsertList) {
-                Node* tempNode = reInsertList->m_node;
+                Node* tempNode = reInsertList->fNode;
 
-                for (int index = 0; index < tempNode->m_count; ++index) {
-                    // TODO go over this code. should I use (tempNode->m_level - 1)?
-                    this->InsertRect(tempNode->m_branch[index],
+                for (int index = 0; index < tempNode->fCount; ++index) {
+                    // TODO go over this code. should I use (tempNode->fLevel - 1)?
+                    this->InsertRect(tempNode->fBranch[index],
                         root,
-                        tempNode->m_level);
+                        tempNode->fLevel);
                 }
 
                 ListNode* remLNode = reInsertList;
-                reInsertList = reInsertList->m_next;
+                reInsertList = reInsertList->fNext;
 
-                this->FreeNode(remLNode->m_node);
+                this->FreeNode(remLNode->fNode);
                 this->FreeListNode(remLNode);
             }
 
             // Check for redundant root (not leaf, 1 child) and eliminate TODO replace
             // if with while? In case there is a whole branch of redundant roots...
-            if ((*root)->m_count == 1 && (*root)->IsInternalNode()) {
-                auto tempNode = (*root)->m_branch[0].m_child;
+            if ((*root)->fCount == 1 && (*root)->IsInternalNode()) {
+                auto tempNode = (*root)->fBranch[0].fChild;
 
                 RTreeAssert(tempNode);
                 this->FreeNode(*root);
@@ -1073,19 +1075,19 @@ protected:
     // Returns 1 if record not found, 0 if success.
     bool RemoveRectRec(Rect* rect, const DataType& id, Node* node, ListNode** listNode) {
         RTreeAssert(rect && node && listNode);
-        RTreeAssert(node->m_level >= 0);
+        RTreeAssert(node->fLevel >= 0);
 
         if (node->IsInternalNode())  // not a leaf node
         {
-            for (int index = 0; index < node->m_count; ++index) {
-                if (this->Overlap(rect, &(node->m_branch[index].m_rect))) {
-                    if (!this->RemoveRectRec(rect, id, node->m_branch[index].m_child, listNode)) {
-                        if (node->m_branch[index].m_child->m_count >= _MinNodeCount) {
+            for (int index = 0; index < node->fCount; ++index) {
+                if (this->Overlap(rect, &(node->fBranch[index].fRect))) {
+                    if (!this->RemoveRectRec(rect, id, node->fBranch[index].fChild, listNode)) {
+                        if (node->fBranch[index].fChild->fCount >= _MinNodeCount) {
                             // child removed, just resize parent rect
-                            node->m_branch[index].m_rect = NodeCover(node->m_branch[index].m_child);
+                            node->fBranch[index].fRect = NodeCover(node->fBranch[index].fChild);
                         } else {
                             // child removed, not enough entries in node, eliminate node
-                            this->ReInsert(node->m_branch[index].m_child, listNode);
+                            this->ReInsert(node->fBranch[index].fChild, listNode);
                             this->DisconnectBranch(node, index); // Must return after this call as count has changed
                         }
                         return false;
@@ -1095,8 +1097,8 @@ protected:
             return true;
         } else // A leaf node
         {
-            for (int index = 0; index < node->m_count; ++index) {
-                if (node->m_branch[index].m_data == id) {
+            for (int index = 0; index < node->fCount; ++index) {
+                if (node->fBranch[index].fData == id) {
                     this->DisconnectBranch(node, index); // Must return after this call as count has changed
                     return false;
                 }
@@ -1128,8 +1130,8 @@ protected:
         RTreeAssert(rectA && rectB);
 
         for (int index = 0; index < kNumDimensions; ++index) {
-            if (rectA->m_min[index] > rectB->m_max[index] ||
-                rectB->m_min[index] > rectA->m_max[index]) {
+            if (rectA->fMin[index] > rectB->fMax[index] ||
+                rectB->fMin[index] > rectA->fMax[index]) {
                 return false;
             }
         }
@@ -1142,22 +1144,22 @@ protected:
         ListNode* newListNode{ nullptr };
 
         newListNode = this->AllocListNode();
-        newListNode->m_node = node;
-        newListNode->m_next = *listNode;
+        newListNode->fNode = node;
+        newListNode->fNext = *listNode;
         *listNode = newListNode;
     }
 
     // Search in an index tree or subtree for all data retangles that overlap the argument rectangle.
     bool Search(Node* node, Rect* rect, int& foundCount, std::function<bool(const DataType&)> callback) const {
         RTreeAssert(node);
-        RTreeAssert(node->m_level >= 0);
+        RTreeAssert(node->fLevel >= 0);
         RTreeAssert(rect);
 
         if (node->IsInternalNode()) {
             // This is an internal node in the tree
-            for (int index = 0; index < node->m_count; ++index) {
-                if (this->Overlap(rect, &node->m_branch[index].m_rect)) {
-                    if (!this->Search(node->m_branch[index].m_child, rect, foundCount, callback)) {
+            for (int index = 0; index < node->fCount; ++index) {
+                if (this->Overlap(rect, &node->fBranch[index].fRect)) {
+                    if (!this->Search(node->fBranch[index].fChild, rect, foundCount, callback)) {
                         // The callback indicated to stop searching
                         return false;
                     }
@@ -1165,9 +1167,9 @@ protected:
             }
         } else {
             // This is a leaf node
-            for (int index = 0; index < node->m_count; ++index) {
-                if (this->Overlap(rect, &node->m_branch[index].m_rect)) {
-                    const auto& id = node->m_branch[index].m_data;
+            for (int index = 0; index < node->fCount; ++index) {
+                if (this->Overlap(rect, &node->fBranch[index].fRect)) {
+                    const auto& id = node->fBranch[index].fData;
                     ++foundCount;
 
                     if (callback && !callback(id)) {
@@ -1182,12 +1184,12 @@ protected:
 
     void RemoveAllRec(Node* node) {
         RTreeAssert(node);
-        RTreeAssert(node->m_level >= 0);
+        RTreeAssert(node->fLevel >= 0);
 
         if (node->IsInternalNode()) // This is an internal node in the tree
         {
-            for (int index = 0; index < node->m_count; ++index) {
-                this->RemoveAllRec(node->m_branch[index].m_child);
+            for (int index = 0; index < node->fCount; ++index) {
+                this->RemoveAllRec(node->fBranch[index].fChild);
             }
         }
         this->FreeNode(node);
@@ -1196,7 +1198,7 @@ protected:
     void Reset() {
 #ifdef RTREE_DONT_USE_MEMPOOLS
         // Delete all existing nodes
-        this->RemoveAllRec(m_root);
+        this->RemoveAllRec(fRoot);
 #else // RTREE_DONT_USE_MEMPOOLS
         // Just reset memory pools.  We are not using complex types
         // EXAMPLE
@@ -1205,35 +1207,35 @@ protected:
 
     void CountRec(Node* node, int& count) const {
         if (node->IsInternalNode()) { // not a leaf node
-            for (int index = 0; index < node->m_count; ++index) {
-                this->CountRec(node->m_branch[index].m_child, count);
+            for (int index = 0; index < node->fCount; ++index) {
+                this->CountRec(node->fBranch[index].fChild, count);
             }
         } else { // A leaf node
-            count += node->m_count;
+            count += node->fCount;
         }
     }
 
     bool SaveRec(Node* node, RTFileStream& stream) const {
-        stream.Write(node->m_level);
-        stream.Write(node->m_count);
+        stream.Write(node->fLevel);
+        stream.Write(node->fCount);
 
         if (node->IsInternalNode()) { // not a leaf node
-            for (int index = 0; index < node->m_count; ++index) {
-                const auto& curBranch = node->m_branch[index];
+            for (int index = 0; index < node->fCount; ++index) {
+                const auto& curBranch = node->fBranch[index];
 
-                stream.WriteArray(curBranch->m_rect.m_min, kNumDimensions);
-                stream.WriteArray(curBranch->m_rect.m_max, kNumDimensions);
+                stream.WriteArray(curBranch->fRect.fMin, kNumDimensions);
+                stream.WriteArray(curBranch->fRect.fMax, kNumDimensions);
 
-                this->SaveRec(curBranch->m_child, stream);
+                this->SaveRec(curBranch->fChild, stream);
             }
         } else { // A leaf node
-            for (int index = 0; index < node->m_count; ++index) {
-                const auto& curBranch = &node->m_branch[index];
+            for (int index = 0; index < node->fCount; ++index) {
+                const auto& curBranch = &node->fBranch[index];
 
-                stream.WriteArray(curBranch->m_rect.m_min, kNumDimensions);
-                stream.WriteArray(curBranch->m_rect.m_max, kNumDimensions);
+                stream.WriteArray(curBranch->fRect.fMin, kNumDimensions);
+                stream.WriteArray(curBranch->fRect.fMax, kNumDimensions);
 
-                stream.Write(curBranch->m_data);
+                stream.Write(curBranch->fData);
             }
         }
 
@@ -1241,27 +1243,27 @@ protected:
     }
 
     bool LoadRec(Node* node, RTFileStream& stream) {
-        stream.Read(node->m_level);
-        stream.Read(node->m_count);
+        stream.Read(node->fLevel);
+        stream.Read(node->fCount);
 
         if (node->IsInternalNode()) { // not a leaf node
-            for (int index = 0; index < node->m_count; ++index) {
-                Branch* curBranch = &node->m_branch[index];
+            for (int index = 0; index < node->fCount; ++index) {
+                Branch* curBranch = &node->fBranch[index];
 
-                stream.ReadArray(curBranch->m_rect.m_min, kNumDimensions);
-                stream.ReadArray(curBranch->m_rect.m_max, kNumDimensions);
+                stream.ReadArray(curBranch->fRect.fMin, kNumDimensions);
+                stream.ReadArray(curBranch->fRect.fMax, kNumDimensions);
 
-                curBranch->m_child = AllocNode();
-                this->LoadRec(curBranch->m_child, stream);
+                curBranch->fChild = AllocNode();
+                this->LoadRec(curBranch->fChild, stream);
             }
         } else { // A leaf node
-            for (int index = 0; index < node->m_count; ++index) {
-                Branch* curBranch = &node->m_branch[index];
+            for (int index = 0; index < node->fCount; ++index) {
+                Branch* curBranch = &node->fBranch[index];
 
-                stream.ReadArray(curBranch->m_rect.m_min, kNumDimensions);
-                stream.ReadArray(curBranch->m_rect.m_max, kNumDimensions);
+                stream.ReadArray(curBranch->fRect.fMin, kNumDimensions);
+                stream.ReadArray(curBranch->fRect.fMax, kNumDimensions);
 
-                stream.Read(curBranch->m_data);
+                stream.Read(curBranch->fData);
             }
         }
 
@@ -1269,45 +1271,45 @@ protected:
     }
 
     void CopyRec(Node* current, Node* other) {
-        current->m_level = other->m_level;
-        current->m_count = other->m_count;
+        current->fLevel = other->fLevel;
+        current->fCount = other->fCount;
 
         if (current->IsInternalNode()) { // not a leaf node
-            for (int index = 0; index < current->m_count; ++index) {
-                auto& currentBranch = current->m_branch[index];
-                const auto& otherBranch = other->m_branch[index];
+            for (int index = 0; index < current->fCount; ++index) {
+                auto& currentBranch = current->fBranch[index];
+                const auto& otherBranch = other->fBranch[index];
 
-                std::copy(otherBranch.m_rect.m_min,
-                    otherBranch.m_rect.m_min + kNumDimensions,
-                    currentBranch.m_rect.m_min);
+                std::copy(otherBranch.fRect.fMin,
+                    otherBranch.fRect.fMin + kNumDimensions,
+                    currentBranch.fRect.fMin);
 
-                std::copy(otherBranch.m_rect.m_max,
-                    otherBranch.m_rect.m_max + kNumDimensions,
-                    currentBranch.m_rect.m_max);
+                std::copy(otherBranch.fRect.fMax,
+                    otherBranch.fRect.fMax + kNumDimensions,
+                    currentBranch.fRect.fMax);
 
-                currentBranch.m_child = AllocNode();
-                this->CopyRec(currentBranch.m_child, otherBranch.m_child);
+                currentBranch.fChild = AllocNode();
+                this->CopyRec(currentBranch.fChild, otherBranch.fChild);
             }
         } else { // A leaf node
-            for (int index = 0; index < current->m_count; ++index) {
-                auto& currentBranch = current->m_branch[index];
-                const auto& otherBranch = other->m_branch[index];
+            for (int index = 0; index < current->fCount; ++index) {
+                auto& currentBranch = current->fBranch[index];
+                const auto& otherBranch = other->fBranch[index];
 
-                std::copy(otherBranch.m_rect.m_min,
-                    otherBranch.m_rect.m_min + kNumDimensions,
-                    currentBranch.m_rect.m_min);
+                std::copy(otherBranch.fRect.fMin,
+                    otherBranch.fRect.fMin + kNumDimensions,
+                    currentBranch.fRect.fMin);
 
-                std::copy(otherBranch.m_rect.m_max,
-                    otherBranch.m_rect.m_max + kNumDimensions,
-                    currentBranch.m_rect.m_max);
+                std::copy(otherBranch.fRect.fMax,
+                    otherBranch.fRect.fMax + kNumDimensions,
+                    currentBranch.fRect.fMax);
 
-                currentBranch.m_data = otherBranch.m_data;
+                currentBranch.fData = otherBranch.fData;
             }
         }
     }
 
-    Node* m_root = nullptr;                                         ///< Root of tree
-    ElementTypeReal m_unitSphereVolume = kElementTypeRealZero;      ///< Unit sphere constant for required number of dimensions
+    Node* fRoot = nullptr;                                         ///< Root of tree
+    ElementTypeReal fUnitSphereVolume = kElementTypeRealZero;      ///< Unit sphere constant for required number of dimensions
 };
 
 #endif //RTREE_H

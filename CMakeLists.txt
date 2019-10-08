@@ -1,14 +1,10 @@
 # CMake version check
 cmake_minimum_required(VERSION 3.10.0)
 
-# Check build directory
-if(CMAKE_SOURCE_DIR STREQUAL CMAKE_BINARY_DIR)
-    message(FATAL_ERROR "Do not build in-source. Please remove CMakeCache.txt and the CMakeFiles/ directory. Then build out-of-source.")
-endif()
-
 # RTree project
 project(RTree
-    VERSION 0.1.0)
+    VERSION 0.1.0
+    LANGUAGES CXX)
 
 # Project build options
 option(RTREE_BUILD_TESTS "Build test programs" OFF)
