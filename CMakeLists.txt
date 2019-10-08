@@ -18,7 +18,7 @@ add_library(RTree INTERFACE)
 target_include_directories(RTree
     INTERFACE ${CMAKE_CURRENT_LIST_DIR}/include)
 target_compile_features(RTree
-    INTERFACE cxx_std_11)
+    INTERFACE cxx_std_17)
 
 # Tests
 if (RTREE_BUILD_TESTS)
